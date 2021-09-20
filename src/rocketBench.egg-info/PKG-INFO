@@ -1,0 +1,22 @@
+Metadata-Version: 2.1
+Name: rocketBench
+Version: 0.0.1
+Summary: A toolbox-like package to aid with the design of liquid fuelled rocket engines, or really any constant mass-flow process.
+Home-page: https://github.com/Exerkitus/RocketBench
+Author: Theo M
+License: UNKNOWN
+Project-URL: Bug Tracker, https://github.com/Exerkitus/RocketBench/issues
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+License-File: LICENSE
+
+# RocketBench
+
+(https://guides.github.com/features/mastering-markdown/)
+
+This is a little project to develop a toolbox for designing liquid-fuelled rocket engines.
+

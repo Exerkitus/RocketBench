@@ -10,9 +10,9 @@ setuptools.setup(
     description="A toolbox-like package to aid with the design of liquid fuelled rocket engines, or really any constant mass-flow process.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="to be added later",
+    url="https://github.com/Exerkitus/RocketBench",
     project_urls={
-        "Bug Tracker": "to be added later",
+        "Bug Tracker": "https://github.com/Exerkitus/RocketBench/issues",
     },
     classifiers=[
         "Programming Language :: Python :: 3",
