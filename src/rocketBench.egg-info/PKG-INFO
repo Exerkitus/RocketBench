@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: rocketBench
-Version: 0.0.1
+Version: 0.0.2
 Summary: A toolbox-like package to aid with the design of liquid fuelled rocket engines, or really any constant mass-flow process.
 Home-page: https://github.com/Exerkitus/RocketBench
 Author: Theo M

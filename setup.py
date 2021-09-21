@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="rocketBench",
-    version="0.0.1",
+    version="0.0.2",
     author="Theo M",
     description="A toolbox-like package to aid with the design of liquid fuelled rocket engines, or really any constant mass-flow process.",
     long_description=long_description,
