@@ -2,12 +2,6 @@ LICENSE
 README.md
 pyproject.toml
 setup.py
-src/rocketBench/Component.py
-src/rocketBench/Engine.py
-src/rocketBench/Fluid.py
-src/rocketBench/Mixture.py
-src/rocketBench/Port.py
-src/rocketBench/__init__.py
 src/rocketBench.egg-info/PKG-INFO
 src/rocketBench.egg-info/SOURCES.txt
 src/rocketBench.egg-info/dependency_links.txt

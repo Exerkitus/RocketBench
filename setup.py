@@ -20,6 +20,11 @@ setup(
         "Operating System :: OS Independent",
     ],
     package_dir={"": "src"},
-    packages=find_packages(include=["src", "src.*", "src.FluidSubclasses.*", "src.PortSubclasses.*"]),
+    packages=find_packages(include=[".src",
+                                    ".src.*",
+                                    ".src.FluidSubclasses",
+                                    ".src.FluidSubclasses.*",
+                                    ".src.PortSubclasses",
+                                    ".src.PortSubclasses.*"]),
     python_requires=">=3.9",
 )
