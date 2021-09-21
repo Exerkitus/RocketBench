@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 from typing import Union
 from copy import deepcopy
-from RocketBench.Fluid import Fluid
+from .Fluid import Fluid
 # from RocketBench.Engine import Engine
 
 class Port:

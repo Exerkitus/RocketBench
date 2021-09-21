@@ -1,8 +1,0 @@
-LICENSE
-README.md
-pyproject.toml
-setup.py
-src/rocketBench.egg-info/PKG-INFO
-src/rocketBench.egg-info/SOURCES.txt
-src/rocketBench.egg-info/dependency_links.txt
-src/rocketBench.egg-info/top_level.txt

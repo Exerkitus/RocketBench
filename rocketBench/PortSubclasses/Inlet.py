@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Union
 from copy import deepcopy
 from ..Port import Port
-from RocketBench.FluidSubclasses.WaterRTP import WaterRTP
+from rocketBench.FluidSubclasses.WaterRTP import WaterRTP
 
 class Inlet(Port):
 

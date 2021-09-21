@@ -2,8 +2,8 @@
 from dataclasses import dataclass
 from typing import Union
 from copy import deepcopy
-from RocketBench.Component import Component
-from RocketBench.Port import Port
+from .Component import Component
+from .Port import Port
 
 class Engine:
     """

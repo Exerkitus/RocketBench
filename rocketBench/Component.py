@@ -1,11 +1,11 @@
 from typing import Union
 from copy import deepcopy
 
-from RocketBench.Port import Port
-from RocketBench.Fluid import Fluid
+from .Port import Port
+from .Fluid import Fluid
 # from RocketBench.Engine import Engine
 
-from RocketBench.PortSubclasses.Inlet import Inlet
+from .PortSubclasses.Inlet import Inlet
 
 def counter(limit = 100):
     i = 1
