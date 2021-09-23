@@ -1,6 +1,6 @@
 from typing import Union
 
-from Fluid import Fluid
+from .Fluid import Fluid
 
 
 class Mixture:
