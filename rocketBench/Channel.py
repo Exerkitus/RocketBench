@@ -1,10 +1,12 @@
 from typing import Union
 from copy import deepcopy
 
-from .Port import Port
+# from .Port import Port
 from .Fluid import Fluid
+from .Utilities import counter
 
-from .PortSubclasses.Inlet import Inlet
+# from .PortSubclasses.Inlet import Inlet
+genCompCounter = counter()
 
 class Channel:
     """
@@ -21,15 +23,31 @@ class Channel:
     __buildFlag = False
 
     def __init__(self,\
-                engineObject: any = None,\
-                channelName: str = 'Generic Component',\
-                pressureDrop: float = 0.0,\
-                *inputs) -> None:
+                engineObject: any,\
+                inputs: any = None,\
+                name: str = 'Generic Component',\
+                pressureDrop: Union[float, None] = 0.0,\
+                absoluteOutletPressure: Union[float, None] = None,\
+                startingFluid: Fluid = None) -> None:
 
         self.e = engineObject
-        self.channelName = channelName ##--This uses the setter to ensure that 'Generic components are automatically numbered correctly.
+        self.channelName = name ##--This uses the setter to ensure that 'Generic components are automatically numbered correctly.
         self.pressureDrop = pressureDrop
-        self.inputConnections = [i for i in inputs] if len(inputs) else []
+        self.absolutePressure = absoluteOutletPressure
+        self.startingFluid = startingFluid
+
+        if inputs:
+            if type(inputs) == list[Channel]:
+                self.inputConnections = inputs
+            elif (type(inputs) == Channel) or issubclass(type(inputs), Channel):
+                self.inputConnections = [ inputs ]
+            else:
+                raise ValueError(f"type {type(inputs)} is not valid for a channel input.")
+        else:
+            self.inputConnections = []
+        
+        self.mdot = None
+        self.lockOutputFluid = False
         
         self.e._registerChannel(self)
         return None
@@ -46,6 +64,14 @@ class Channel:
         e.g., a pump needs to access the power (flow rate) in the power channel in order to define the fluid properties.
         """
         return
+    
+    def _atBuildMethod(self):
+        """
+        This is to be a method that will be overwritten by child classes that will allow them to modify the register at build-time.
+        """
+        if not self.__buildFlag:
+            raise ValueError(f"{self.channelName}'s _atBuildMethod() has been called while the __buildFlag is False. This would cause the _atBuildMethod() to fail.")
+        return None
 
     def _setBuildFlag(self):
         self.__buildFlag = True

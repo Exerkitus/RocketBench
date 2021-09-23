@@ -26,44 +26,67 @@ class Engine:
     SIconversions           = {'Y': 1e24, 'Z':1e21, 'E': 1e18, 'P': 1e15, 'T': 1e12, 'G': 1e9, 'M': 1e6, 'k': 1000, 'd': 1e-1, 'c': 1e-2, 'm': 1e-3, 'u': 1e-6, 'n': 1e-9, 'p': 1e-12, 'f': 1e-15, 'a': 1e-18, 'z': 1e-21, 'y': 1e-24}
     pressureConversions     = {'pa': lambda x: x, 'bar': lambda x: 100000*x, 'psi': lambda x: 6894.7572932*x, 'atm': lambda x: 101325*x, 'torr': lambda x: 133.32236842*x}
     temperatureConversions  = {'k': lambda x: x, 'degc': lambda x: x + 273.15, 'f': lambda x: ((x-32)*5/9) + 273.15}
-    powerConversions        = {'w': lambda x: x, 'hp': lambda x: 745.6996715823*x, 'ftlbf/s': lambda x: 1.355817948331*x}
+    powerConversions        = {'w': lambda x: x, 'watt': lambda x: x, 'hp': lambda x: 745.6996715823*x, 'ftlbf/s': lambda x: 1.355817948331*x}
 
-    _chaRegister: dict[int, any] = {}
-    _chaRegIndex: int = 0
+    register: dict[int, any] = {}
+    _regIndex: int = 0
     
     def __init__(self,\
                 pressureUnit: str = 'bar',\
                 temperatureUnit: str = 'K',\
-                powerUnit: str = 'watt') -> None:
+                powerUnit: str = 'W') -> None:
         
         self.pressureConv       = self.__extractConversion(self.pressureConversions, pressureUnit)
         self.temperatureUnit    = self.__extractConversion(self.temperatureConversions, temperatureUnit)
         self.powerUnit          = self.__extractConversion(self.powerConversions, powerUnit)
         self.powerChannels      = {}
+        self.mDotController     = {}
         pass
     
     def _registerChannel(self, objToAdd) -> None:
-        objToAdd.registerNumber = self._chaRegIndex
-        self._chaRegister[self._chaRegIndex] = { 'channel' : objToAdd, 'outputFluid': None, 'sendsTo': {}  }
-        self._chaRegIndex += 1
+        objToAdd.registerNumber = self._regIndex
+        self.register[self._regIndex] = { 'channel' : objToAdd, 'outputFluid': None, 'sendsTo': {}  }
+        self._regIndex += 1
 
     def build(self):
-        if len(self._chaRegister) == 0:
+
+        def recursivePropagate(connections, fluidToPropagate):
+            for i in connections:
+                if not self.register[i]['channel'].startingFluid:
+                    self.register[i]['channel'].startingFluid = fluidToPropagate
+                    self.register[i]['outputFluid'] = fluidToPropagate
+                    recursivePropagate(self.register[i]['sendsTo'], fluidToPropagate)
+                else:
+                    self.register[i]['outputFluid'] = self.register[i]['channel'].startingFluid
+                    recursivePropagate(self.register[i]['sendsTo'], self.register[i]['channel'].startingFluid)
+            return True
+
+        if len(self.register) == 0:
             raise AttributeError("At least one component must be to the Engine before attempting to build.")
-        for i in range(0,len(self._chaRegister),1):
-            cha = self._chaRegister[i]['channel']
-            cha._setBuildFlag()##--refactor below here.
-            inputNumbers = [ inputs.registerNumber for inputs in cha.inputConnections ]
+        for i in range(0,len(self.register),1):
+            channel = self.register[i]['channel']
+            channel._setBuildFlag()##--refactor below here.
+            print(channel.inputConnections)
+            inputNumbers = [ inpuT.registerNumber for inpuT in channel.inputConnections ] if len(channel.inputConnections) else []
             for j in inputNumbers:
-                self._chaRegister[j]['sendsTo'][i] = None
+                self.register[j]['sendsTo'][i] = None
                 continue
+            channel._atBuildMethod()
             continue
+
+        ##--Propagate starting fluids
+        for i in self.register:
+            if self.register[i]['channel'].startingFluid:
+                recursivePropagate(self.register[i]['sendsTo'], self.register[i]['channel'].startingFluid)
+            else:
+                pass
+
         return True
     
     def __extractConversion(self, unitDict, unit):
-        if unit in unitDict.keys():
-            return unitDict[unit]
-        elif (unit[1:] in unitDict.keys()) and (unit[0] in self.SIconversions.keys()):
-            return lambda x: self.SIconversions[unit[0]] * unitDict[unit[1:]](x)
+        if unit.lower() in unitDict.keys():
+            return unitDict[unit.lower()]
+        elif (unit[1:].lower() in unitDict.keys()) and (unit[0].lower() in self.SIconversions.keys()):
+            return lambda x: self.SIconversions[unit[0].lower()] * unitDict[unit[1:].lower()](x)
         else:
-            raise ValueError(f"Unit '{unit}' not supported. The supported units are {unitDict.keys()} and the supported prefixes are {self.SIconversions.keys()}")
+            raise ValueError(f"Unit '{unit}' not supported. The supported units are {list(unitDict.keys())} and the supported prefixes are {list(self.SIconversions.keys())}")

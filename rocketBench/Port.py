@@ -4,7 +4,6 @@ from typing import Union
 from copy import deepcopy
 from .Fluid import Fluid
 from .Engine import Engine
-from .Power import Power
 
 class Port:
 
