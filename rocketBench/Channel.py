@@ -31,13 +31,16 @@ class Channel:
                 startingFluid: Fluid = None) -> None:
 
         self.e = engineObject
-        self.channelName = name ##--This uses the setter to ensure that 'Generic components are automatically numbered correctly.
+        self.name = name ##--This uses the setter to ensure that 'Generic components are automatically numbered correctly.
         self.pressureDrop = pressureDrop
         self.absolutePressure = absoluteOutletPressure
-        self.startingFluid = startingFluid
+        self.outputFluid = startingFluid
+        self.mdot = None
+        self.lockOutputFluid = False
+        self.isController = False
 
         if inputs:
-            if type(inputs) == list[Channel]:
+            if type(inputs) == list:
                 self.inputConnections = inputs
             elif (type(inputs) == Channel) or issubclass(type(inputs), Channel):
                 self.inputConnections = [ inputs ]
@@ -46,8 +49,6 @@ class Channel:
         else:
             self.inputConnections = []
         
-        self.mdot = None
-        self.lockOutputFluid = False
         
         self.e._registerChannel(self)
         return None

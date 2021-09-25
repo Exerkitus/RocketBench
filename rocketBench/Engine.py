@@ -40,46 +40,162 @@ class Engine:
         self.temperatureUnit    = self.__extractConversion(self.temperatureConversions, temperatureUnit)
         self.powerUnit          = self.__extractConversion(self.powerConversions, powerUnit)
         self.powerChannels      = {}
-        self.mDotController     = {}
+        self.mDotControllers     = {}
         pass
     
     def _registerChannel(self, objToAdd) -> None:
         objToAdd.registerNumber = self._regIndex
-        self.register[self._regIndex] = { 'channel' : objToAdd, 'outputFluid': None, 'sendsTo': {}  }
+        self.register[self._regIndex] = { 'channel' : objToAdd, 'outputFluid': None, 'outputFluid': None, 'fedBy': [], 'sendsTo': []  }
         self._regIndex += 1
 
     def build(self):
 
-        def recursivePropagate(connections, fluidToPropagate):
+        def recursivePropagateFluid(connections, fluidToPropagate):
             for i in connections:
-                if not self.register[i]['channel'].startingFluid:
-                    self.register[i]['channel'].startingFluid = fluidToPropagate
+                if not self.register[i]['channel'].outputFluid:
+                    self.register[i]['channel'].outputFluid = fluidToPropagate
                     self.register[i]['outputFluid'] = fluidToPropagate
-                    recursivePropagate(self.register[i]['sendsTo'], fluidToPropagate)
+                    recursivePropagateFluid(self.register[i]['sendsTo'], fluidToPropagate)
                 else:
-                    self.register[i]['outputFluid'] = self.register[i]['channel'].startingFluid
-                    recursivePropagate(self.register[i]['sendsTo'], self.register[i]['channel'].startingFluid)
+                    self.register[i]['outputFluid'] = self.register[i]['channel'].outputFluid
+                    recursivePropagateFluid(self.register[i]['sendsTo'], self.register[i]['channel'].outputFluid)
             return True
+        
+        def propagateDemandFlowDownstream(self, i):
+            # combineMdots(self, i)
+            mdotAtI = self.register[i]['mdot']
+            if (len(self.register[i]['sendsTo']) == 1) and mdotAtI:
+                downstreamChaNumber = self.register[i]['sendsTo'][0]
+                if len(self.register[ downstreamChaNumber ]['fedBy']) == 1:
+                    mdotToChange = self.register[ downstreamChaNumber ]['mdot']
+                    print(mdotAtI, mdotToChange)
+                    if mdotToChange == None:
+                        writeMdot(self, i, mdotAtI)
+                        if self.register[downstreamChaNumber]['channel'].isController:
+                            print(f"Demanded flow requires {self.register[downstreamChaNumber]['channel'].name} inherit a flow rate of {mdotAtI}")
+                            self.mDotControllers.pop(downstreamChaNumber)
+                        propagateDemandFlowDownstream(self, downstreamChaNumber)
+                    elif mdotToChange == mdotAtI:
+                        pass
+                    else:
+                        raise ValueError(f"An error was encountered where mass flow rates of {mdotAtI} and {mdotToChange} have both been specified along the same closed path. This cannot be resolved.")
+            return
+        
+        # def propagateDemandFlowDownstream2(self, k):
+        #     for i in self.register[k]['sendsTo']:
+        #         mdotAtI = self.register[i]['mdot']
+        #         if type(mdotAtI) == None:
+        #             try:
+        #                 mdot = sum( self.register[j]['mdot'] for j in self.register[i]['fedBy'] )
+        #                 writeMdot(self, i, mdot)
+        #                 propagateDemandFlowDownstream2(self, i)
+        #             except:
+        #                 pass
+        #     return
+
+        # def propagateDemandFlowUpstream2(self, k):
+        #     for i in self.register[k]['fedBy']:
+        #         mdotAtI = self.register[i]['mdot']
+        #         if type(mdotAtI) == None:
+        #             try:
+        #                 mdot = sum( self.register[j]['mdot'] for j in self.register[i]['sendsTo'] )
+        #                 writeMdot(self, i, mdot)
+        #                 propagateDemandFlowDownstream2(self, i)
+        #             except:
+        #                 pass
+        #     return
+
+        ##-- I think these will hit an issue, as the mass flow of the higher or lower channels is actually split before all the connections- it doesn't just give the same to all of them!
+
+        def propagateDemandFlowUpstream(self, i):
+            # combineMdots(self, i)
+            mdotAtI = self.register[i]['mdot']
+            if (len(self.register[i]['fedBy']) == 1) and mdotAtI:
+                upstreamChaNumber = self.register[i]['fedBy'][0]
+                if len(self.register[ upstreamChaNumber ]['sendsTo']) == 1:
+                    mdotToChange = self.register[ upstreamChaNumber ]['mdot']
+                    if mdotToChange == None:
+                        writeMdot(self, i, mdotAtI)
+                        if self.register[upstreamChaNumber]['channel'].isController:
+                            print(f"Demanded flow requires {self.register[upstreamChaNumber]['channel'].name} inherit a flow rate of {mdotAtI}")
+                            self.mDotControllers.pop(upstreamChaNumber)
+                        propagateDemandFlowUpstream(self, upstreamChaNumber)
+                    elif mdotToChange == mdotAtI:
+                        pass
+                    else:
+                        raise ValueError(f"An error was encountered where mass flow rates of {mdotAtI} and {mdotToChange} have both been specified along the same closed path. This cannot be resolved.")
+            return
+        
+        def combineMdots(self, i):
+            numIn, numOut = len(self.register[i]['fedBy']), len(self.register[i]['sendsTo'])
+            numKnownIn, numKnownOut = sum( 1 if isinstance(self.register[j]['mdot'], float) else 0 for j in self.register[i]['fedBy']), sum( 1 if isinstance(self.register[j]['mdot'],float) else 0 for j in self.register[i]['sendsTo'])
+
+            print(self.register[i]['channel'].name)
+
+            if ((numIn + numOut - numKnownIn - numKnownOut) == 1) and (numIn + numOut > 2):
+                mdotDiff = sum( self.register[j]['mdot'] if self.register[j]['mdot'] != None else 0 for j in self.register[i]['sendsTo'] ) - sum( self.register[j]['mdot'] if self.register[j]['mdot'] != None else 0 for j in self.register[i]['fedBy'] ) ##--This is positive where the outgoing flow is unbalanced by an input.
+                if numOut == numKnownOut:
+                    missingChannel = [j for j in self.register[i]['fedBy'] if self.register[j]['mdot'] == None][0]
+                elif numIn == numKnownIn:
+                    print(numIn, numOut, numKnownIn, numKnownOut)
+                    missingChannel = [j for j in self.register[i]['sendsTo'] if self.register[j]['mdot'] == None][0]
+                    mdotDiff *= -1
+                else:
+                    print(numIn, numOut, numKnownIn, numKnownOut)
+                
+                print("missingChannel", missingChannel)
+                writeMdot(self, missingChannel)
+                propagateDemandFlowUpstream(self,i)
+                propagateDemandFlowDownstream(self,i)
+            
+            if self.register[i]['mdot'] == None and numIn == numKnownIn:
+                mdotTotal = sum(self.register[j]['mdot'] for j in self.register[i]['fedBy'])
+                writeMdot(self, i, mdotTotal)
+                propagateDemandFlowDownstream(self, i)
+            elif self.register[i]['mdot'] == None and numOut == numKnownOut:
+                mdotTotal = sum(self.register[j]['mdot'] for j in self.register[i]['sendsTo'])
+                writeMdot(self, i, mdotTotal)
+                propagateDemandFlowUpstream(self, i)
+            return
+        
+        def writeMdot(self, i, mdot):
+            self.register[i]['mdot'] = mdot
+            self.register[i]['channel'].mdot = mdot
+            return
 
         if len(self.register) == 0:
             raise AttributeError("At least one component must be to the Engine before attempting to build.")
         for i in range(0,len(self.register),1):
             channel = self.register[i]['channel']
-            channel._setBuildFlag()##--refactor below here.
-            print(channel.inputConnections)
             inputNumbers = [ inpuT.registerNumber for inpuT in channel.inputConnections ] if len(channel.inputConnections) else []
+            self.register[i]['fedBy'] = inputNumbers
             for j in inputNumbers:
-                self.register[j]['sendsTo'][i] = None
+                self.register[j]['sendsTo'].append(i)
                 continue
+            self.register[i]['mdot'] = channel.mdot
+            channel._setBuildFlag()
             channel._atBuildMethod()
             continue
 
-        ##--Propagate starting fluids
+        ##--Propagate starting fluids.
         for i in self.register:
-            if self.register[i]['channel'].startingFluid:
-                recursivePropagate(self.register[i]['sendsTo'], self.register[i]['channel'].startingFluid)
-            else:
-                pass
+            if self.register[i]['channel'].outputFluid:
+                recursivePropagateFluid(self.register[i]['sendsTo'], self.register[i]['channel'].outputFluid)
+            continue
+        
+        for i in self.register:
+            propagateDemandFlowDownstream(self, i)
+            propagateDemandFlowUpstream(self, i)
+            continue
+
+        ##--Now see if any junctions are sufficiently complete to fill in their mass flow rates.
+        for i in self.register:
+            combineMdots(self, i)
+            continue
+
+        """
+        There's an issue with the mass flow being given to all outlets, rather than admitting that it doesn't know.
+        """
 
         return True
     
@@ -90,3 +206,10 @@ class Engine:
             return lambda x: self.SIconversions[unit[0].lower()] * unitDict[unit[1:].lower()](x)
         else:
             raise ValueError(f"Unit '{unit}' not supported. The supported units are {list(unitDict.keys())} and the supported prefixes are {list(self.SIconversions.keys())}")
+    
+    def solveControl(self):
+
+        return
+    
+    def run(self, maxIterations = 100):
+        return
