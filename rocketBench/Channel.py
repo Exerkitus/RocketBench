@@ -86,3 +86,14 @@ class Channel:
         global genCompCounter
         self.__componentName = componentName
         self.__componentName += str(next(genCompCounter)) if self.__componentName == 'Generic Component' else ''
+    
+    @property
+    def mdot(self):
+        return self.__mdot
+    
+    @mdot.setter
+    def mdot(self, mdot):
+        if mdot == None or mdot >= 0:
+            self.__mdot = mdot
+        else:
+            raise ValueError(f"A process has attempted to set a flow rate to be a negative value. This system manages directional flow rates in its association network, not via the sign of the mass flow rate. If you are so far on the cutting edge of physics as to be working with flows of negative mass, you should probably write your own code but please do let me know and I'll happily resolve this for you!")

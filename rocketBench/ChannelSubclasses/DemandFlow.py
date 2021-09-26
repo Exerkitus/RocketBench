@@ -1,7 +1,5 @@
 from ..Channel import Channel
-from ..Fluid import Fluid
 from ..Utilities import counter
-from ..FluidSubclasses.WaterRTP import WaterRTP
 
 demFlowCounter = counter()
 
@@ -12,7 +10,7 @@ class DemandFlow(Channel):
     It is inadvisble to use this within the engine if it can be avoided.
     """
 
-    def __init__(self, engineObject, inputs, name: str = 'Generic Demand Flow', mdot: float = 1.0, fluid: any = WaterRTP(), absolutePressure = None):
+    def __init__(self, engineObject, inputs, name: str = 'Generic Demand Flow', mdot: float = 1.0, fluid: any = None, absolutePressure = None):
         name == name + ' ' + next(counter) if name == 'Generic Demand Flow' else name
         super().__init__(engineObject, inputs, name, pressureDrop = None, absoluteOutletPressure=absolutePressure, startingFluid=fluid)
         self.mdot = mdot
@@ -21,6 +19,5 @@ class DemandFlow(Channel):
     
     def _atBuildMethod(self):
         super()._atBuildMethod()
-        self.e.register[self.registerNumber]['outputFluid'] = self.outputFluid
         return
     pass

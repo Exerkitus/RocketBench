@@ -45,138 +45,101 @@ class Engine:
     
     def _registerChannel(self, objToAdd) -> None:
         objToAdd.registerNumber = self._regIndex
-        self.register[self._regIndex] = { 'channel' : objToAdd, 'outputFluid': None, 'outputFluid': None, 'fedBy': [], 'sendsTo': []  }
+        self.register[self._regIndex] = { 'channel' : objToAdd, 'fedBy': [], 'sendsTo': []  }
         self._regIndex += 1
 
     def build(self):
 
         def recursivePropagateFluid(connections, fluidToPropagate):
             for i in connections:
-                if not self.register[i]['channel'].outputFluid:
-                    self.register[i]['channel'].outputFluid = fluidToPropagate
-                    self.register[i]['outputFluid'] = fluidToPropagate
-                    recursivePropagateFluid(self.register[i]['sendsTo'], fluidToPropagate)
+                ri = self.register[i]
+                channelI = ri['channel']
+                if not channelI.outputFluid:
+                    channelI.outputFluid = fluidToPropagate
+                    recursivePropagateFluid(ri['sendsTo'], fluidToPropagate)
                 else:
-                    self.register[i]['outputFluid'] = self.register[i]['channel'].outputFluid
-                    recursivePropagateFluid(self.register[i]['sendsTo'], self.register[i]['channel'].outputFluid)
+                    recursivePropagateFluid(ri['sendsTo'], channelI.outputFluid)
             return True
         
-        def propagateDemandFlowDownstream(self, i):
-            # combineMdots(self, i)
-            mdotAtI = self.register[i]['mdot']
-            if (len(self.register[i]['sendsTo']) == 1) and mdotAtI:
-                downstreamChaNumber = self.register[i]['sendsTo'][0]
-                if len(self.register[ downstreamChaNumber ]['fedBy']) == 1:
-                    mdotToChange = self.register[ downstreamChaNumber ]['mdot']
-                    print(mdotAtI, mdotToChange)
-                    if mdotToChange == None:
-                        writeMdot(self, i, mdotAtI)
-                        if self.register[downstreamChaNumber]['channel'].isController:
-                            print(f"Demanded flow requires {self.register[downstreamChaNumber]['channel'].name} inherit a flow rate of {mdotAtI}")
-                            self.mDotControllers.pop(downstreamChaNumber)
-                        propagateDemandFlowDownstream(self, downstreamChaNumber)
-                    elif mdotToChange == mdotAtI:
-                        pass
-                    else:
-                        raise ValueError(f"An error was encountered where mass flow rates of {mdotAtI} and {mdotToChange} have both been specified along the same closed path. This cannot be resolved.")
-            return
-        
-        # def propagateDemandFlowDownstream2(self, k):
-        #     for i in self.register[k]['sendsTo']:
-        #         mdotAtI = self.register[i]['mdot']
-        #         if type(mdotAtI) == None:
-        #             try:
-        #                 mdot = sum( self.register[j]['mdot'] for j in self.register[i]['fedBy'] )
-        #                 writeMdot(self, i, mdot)
-        #                 propagateDemandFlowDownstream2(self, i)
-        #             except:
-        #                 pass
-        #     return
-
-        # def propagateDemandFlowUpstream2(self, k):
-        #     for i in self.register[k]['fedBy']:
-        #         mdotAtI = self.register[i]['mdot']
-        #         if type(mdotAtI) == None:
-        #             try:
-        #                 mdot = sum( self.register[j]['mdot'] for j in self.register[i]['sendsTo'] )
-        #                 writeMdot(self, i, mdot)
-        #                 propagateDemandFlowDownstream2(self, i)
-        #             except:
-        #                 pass
-        #     return
-
-        ##-- I think these will hit an issue, as the mass flow of the higher or lower channels is actually split before all the connections- it doesn't just give the same to all of them!
-
-        def propagateDemandFlowUpstream(self, i):
-            # combineMdots(self, i)
-            mdotAtI = self.register[i]['mdot']
-            if (len(self.register[i]['fedBy']) == 1) and mdotAtI:
-                upstreamChaNumber = self.register[i]['fedBy'][0]
-                if len(self.register[ upstreamChaNumber ]['sendsTo']) == 1:
-                    mdotToChange = self.register[ upstreamChaNumber ]['mdot']
-                    if mdotToChange == None:
-                        writeMdot(self, i, mdotAtI)
-                        if self.register[upstreamChaNumber]['channel'].isController:
-                            print(f"Demanded flow requires {self.register[upstreamChaNumber]['channel'].name} inherit a flow rate of {mdotAtI}")
-                            self.mDotControllers.pop(upstreamChaNumber)
-                        propagateDemandFlowUpstream(self, upstreamChaNumber)
-                    elif mdotToChange == mdotAtI:
-                        pass
-                    else:
-                        raise ValueError(f"An error was encountered where mass flow rates of {mdotAtI} and {mdotToChange} have both been specified along the same closed path. This cannot be resolved.")
-            return
-        
-        def combineMdots(self, i):
-            numIn, numOut = len(self.register[i]['fedBy']), len(self.register[i]['sendsTo'])
-            numKnownIn, numKnownOut = sum( 1 if isinstance(self.register[j]['mdot'], float) else 0 for j in self.register[i]['fedBy']), sum( 1 if isinstance(self.register[j]['mdot'],float) else 0 for j in self.register[i]['sendsTo'])
-
-            print(self.register[i]['channel'].name)
-
-            if ((numIn + numOut - numKnownIn - numKnownOut) == 1) and (numIn + numOut > 2):
-                mdotDiff = sum( self.register[j]['mdot'] if self.register[j]['mdot'] != None else 0 for j in self.register[i]['sendsTo'] ) - sum( self.register[j]['mdot'] if self.register[j]['mdot'] != None else 0 for j in self.register[i]['fedBy'] ) ##--This is positive where the outgoing flow is unbalanced by an input.
-                if numOut == numKnownOut:
-                    missingChannel = [j for j in self.register[i]['fedBy'] if self.register[j]['mdot'] == None][0]
-                elif numIn == numKnownIn:
-                    print(numIn, numOut, numKnownIn, numKnownOut)
-                    missingChannel = [j for j in self.register[i]['sendsTo'] if self.register[j]['mdot'] == None][0]
-                    mdotDiff *= -1
-                else:
-                    print(numIn, numOut, numKnownIn, numKnownOut)
-                
-                print("missingChannel", missingChannel)
-                writeMdot(self, missingChannel)
-                propagateDemandFlowUpstream(self,i)
-                propagateDemandFlowDownstream(self,i)
-            
-            if self.register[i]['mdot'] == None and numIn == numKnownIn:
-                mdotTotal = sum(self.register[j]['mdot'] for j in self.register[i]['fedBy'])
-                writeMdot(self, i, mdotTotal)
-                propagateDemandFlowDownstream(self, i)
-            elif self.register[i]['mdot'] == None and numOut == numKnownOut:
-                mdotTotal = sum(self.register[j]['mdot'] for j in self.register[i]['sendsTo'])
-                writeMdot(self, i, mdotTotal)
-                propagateDemandFlowUpstream(self, i)
-            return
-        
         def writeMdot(self, i, mdot):
-            self.register[i]['mdot'] = mdot
             self.register[i]['channel'].mdot = mdot
             return
 
+        def betterMdotPropagate(self, i):
+            ri = self.register[i]
+            channelI = ri['channel']
+            numIn, numOut = len(ri['fedBy']), len(ri['sendsTo'])
+            numKnownIn, numKnownOut = sum( 1 if isinstance(self.register[j]['channel'].mdot, float) else 0 for j in ri['fedBy']), sum( 1 if isinstance(self.register[j]['channel'].mdot, float) else 0 for j in ri['sendsTo'])
+
+
+            completelyUniqueFeeders   =  set( [ len(self.register[j]['sendsTo']) == 1 for j in ri['fedBy']] )
+            completelyUniqueReceivers =  set( [ len(self.register[j]['fedBy']) == 1 for j in ri['sendsTo']] )
+            completelyUniqueFeeders   = list(completelyUniqueFeeders)[0] if len(completelyUniqueFeeders) == 1 else False
+            completelyUniqueReceivers = list(completelyUniqueReceivers)[0] if len(completelyUniqueReceivers) == 1 else False
+
+            if channelI.mdot:
+                ##--Split into up and down stream solutions - look for one unknown in each of up and down stream.
+                if numIn - numKnownIn == 1 and completelyUniqueFeeders:
+                    if numIn == 1:
+                        missingChannel = ri['fedBy'][0]
+                        missingMdot = channelI.mdot
+                    else:
+                        missingChannel = [j for j in ri['fedBy'] if self.register[j]['channel'].mdot == None][0]
+                        missingMdot = channelI.mdot - sum( self.register[j]['channel'].mdot for j in ri['fedBy'] if j != missingChannel )
+                    
+                    writeMdot(self, missingChannel, missingMdot)
+                    betterMdotPropagate(self, missingChannel)
+                
+                if numOut - numKnownOut == 1 and completelyUniqueReceivers:
+                    if numOut == 1:
+                        missingChannel = ri['sendsTo'][0]
+                        missingMdot = channelI.mdot
+                    else:
+                        missingChannel = [j for j in ri['sendsTo'] if self.register[j]['channel'].mdot == None][0]
+                        missingMdot = channelI.mdot - sum( self.register[j]['channel'].mdot for j in ri['sendsTo'] if j != missingChannel )
+                    
+                    writeMdot(self, missingChannel, missingMdot)
+                    betterMdotPropagate(self, missingChannel)
+                
+                return
+            
+            else:
+                ##--Look for a complete side to find mdot and then rerun the function to check to see if that can get us further.
+                ##--Try to pull when only upstream is available:
+                if not (numIn - numKnownIn) and numIn and (numOut - numKnownOut) and completelyUniqueFeeders:
+                    mdotAtI = sum( self.register[j]['channel'].mdot for j in ri['fedBy'] )
+                    writeMdot(self, i, mdotAtI)
+                    betterMdotPropagate(self, i)
+                ##--Try to pull when only downstream is available:
+                elif not (numOut - numKnownOut) and numOut and (numIn - numKnownIn) and completelyUniqueReceivers:
+                    mdotAtI = sum( self.register[j]['channel'].mdot for j in ri['sendsTo'] )
+                    writeMdot(self, i, mdotAtI)
+                    betterMdotPropagate(self, i)
+                ##--If both are available, check if both input and output line up:
+                elif (not (numIn - numKnownIn) and numIn and completelyUniqueFeeders) and (not (numOut - numKnownOut) and numOut and completelyUniqueReceivers):
+                    mdotAtIupstream   = sum( self.register[j]['channel'].mdot for j in ri['fedBy'] )
+                    mdotAtIdownstream = sum( self.register[j]['channel'].mdot for j in ri['sendsTo'] )
+                    if not mdotAtIupstream - mdotAtIdownstream:
+                        writeMdot(self, i, mdotAtIupstream)
+                    else:
+                        raise ValueError(f"Problem encountered during mdot propagation at build: demanded flows converge to demand different mass flow rates up and downstream of {channelI.name}: {mdotAtIupstream} upstream and {mdotAtIdownstream} downstream. Remove or rectify demanded mdots that connect to this component to resolve this issue.")
+
+                return
+        
         if len(self.register) == 0:
             raise AttributeError("At least one component must be to the Engine before attempting to build.")
         for i in range(0,len(self.register),1):
-            channel = self.register[i]['channel']
-            inputNumbers = [ inpuT.registerNumber for inpuT in channel.inputConnections ] if len(channel.inputConnections) else []
+            channelI = self.register[i]['channel']
+            inputNumbers = [ inpuT.registerNumber for inpuT in channelI.inputConnections ] if len(channelI.inputConnections) else []
             self.register[i]['fedBy'] = inputNumbers
             for j in inputNumbers:
                 self.register[j]['sendsTo'].append(i)
                 continue
-            self.register[i]['mdot'] = channel.mdot
-            channel._setBuildFlag()
-            channel._atBuildMethod()
+            # self.register[i]['mdot'] = channelI.mdot
+            channelI._setBuildFlag()
+            channelI._atBuildMethod()
             continue
-
+        
         ##--Propagate starting fluids.
         for i in self.register:
             if self.register[i]['channel'].outputFluid:
@@ -184,17 +147,17 @@ class Engine:
             continue
         
         for i in self.register:
-            propagateDemandFlowDownstream(self, i)
-            propagateDemandFlowUpstream(self, i)
-            continue
-
-        ##--Now see if any junctions are sufficiently complete to fill in their mass flow rates.
+            betterMdotPropagate(self, i)
+            for i in self.register:
+                d = self.register[i]
+                print(i, d['channel'].name, ":", {j:d[j] for j in d if j != 'channel'}, "mdot:", d['channel'].mdot)
+            print()
+        
         for i in self.register:
-            combineMdots(self, i)
-            continue
+            betterMdotPropagate(self, i)
 
         """
-        There's an issue with the mass flow being given to all outlets, rather than admitting that it doesn't know.
+        See if you can find out why fuel plenum doesn't trigger on the first pass.
         """
 
         return True
