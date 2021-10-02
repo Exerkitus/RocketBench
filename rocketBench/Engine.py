@@ -83,9 +83,11 @@ class Engine:
                     if numIn == 1:
                         missingChannel = ri['fedBy'][0]
                         missingMdot = channelI.mdot
+                        print(f"i = {i}: notNone.1.1 -> cha = {missingChannel}")
                     else:
                         missingChannel = [j for j in ri['fedBy'] if self.register[j]['channel'].mdot == None][0]
                         missingMdot = channelI.mdot - sum( self.register[j]['channel'].mdot for j in ri['fedBy'] if j != missingChannel )
+                        print(f"i = {i}: notNone.1.2 -> cha = {missingChannel}")
                     
                     writeMdot(self, missingChannel, missingMdot)
                     betterMdotPropagate(self, missingChannel)
@@ -94,9 +96,11 @@ class Engine:
                     if numOut == 1:
                         missingChannel = ri['sendsTo'][0]
                         missingMdot = channelI.mdot
+                        print(f"i = {i}: notNone.2.1 -> i = {missingChannel}")
                     else:
                         missingChannel = [j for j in ri['sendsTo'] if self.register[j]['channel'].mdot == None][0]
                         missingMdot = channelI.mdot - sum( self.register[j]['channel'].mdot for j in ri['sendsTo'] if j != missingChannel )
+                        print(f"i = {i}: notNone.2.2 -> i = {missingChannel}")
                     
                     writeMdot(self, missingChannel, missingMdot)
                     betterMdotPropagate(self, missingChannel)
@@ -110,17 +114,20 @@ class Engine:
                     mdotAtI = sum( self.register[j]['channel'].mdot for j in ri['fedBy'] )
                     writeMdot(self, i, mdotAtI)
                     betterMdotPropagate(self, i)
+                    print("None.1")
                 ##--Try to pull when only downstream is available:
                 elif not (numOut - numKnownOut) and numOut and (numIn - numKnownIn) and completelyUniqueReceivers:
                     mdotAtI = sum( self.register[j]['channel'].mdot for j in ri['sendsTo'] )
                     writeMdot(self, i, mdotAtI)
                     betterMdotPropagate(self, i)
+                    print("None.2")
                 ##--If both are available, check if both input and output line up:
                 elif (not (numIn - numKnownIn) and numIn and completelyUniqueFeeders) and (not (numOut - numKnownOut) and numOut and completelyUniqueReceivers):
                     mdotAtIupstream   = sum( self.register[j]['channel'].mdot for j in ri['fedBy'] )
                     mdotAtIdownstream = sum( self.register[j]['channel'].mdot for j in ri['sendsTo'] )
                     if not mdotAtIupstream - mdotAtIdownstream:
                         writeMdot(self, i, mdotAtIupstream)
+                        print("None.3")
                     else:
                         raise ValueError(f"Problem encountered during mdot propagation at build: demanded flows converge to demand different mass flow rates up and downstream of {channelI.name}: {mdotAtIupstream} upstream and {mdotAtIdownstream} downstream. Remove or rectify demanded mdots that connect to this component to resolve this issue.")
 
@@ -153,8 +160,8 @@ class Engine:
                 print(i, d['channel'].name, ":", {j:d[j] for j in d if j != 'channel'}, "mdot:", d['channel'].mdot)
             print()
         
-        for i in self.register:
-            betterMdotPropagate(self, i)
+        # for i in self.register:
+        #     betterMdotPropagate(self, i)
 
         """
         See if you can find out why fuel plenum doesn't trigger on the first pass.
